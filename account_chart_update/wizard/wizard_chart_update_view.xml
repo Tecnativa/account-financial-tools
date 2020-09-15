@@ -104,6 +104,14 @@
                                 attrs="{'invisible': [('update_account', '=', False)]}"
                             >
                                 <field
+                                    name="update_tax_repartition_line_account"
+                                    attrs="{'invisible':[('update_tax', '=', False)]}"
+                                />
+                                <field
+                                    name="update_tax_repartition_line_tags"
+                                    attrs="{'invisible':[('update_tax', '=', False)]}"
+                                />
+                                <field
                                     name="account_field_ids"
                                     widget="many2many_checkboxes"
                                     context="{'account_chart_update': True}"

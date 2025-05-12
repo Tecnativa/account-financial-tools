@@ -36,17 +36,33 @@ class ThreadRaiseJoin(threading.Thread):
 
 @tagged("post_install", "-at_install", "test_move_sequence")
 class TestSequenceConcurrency(TransactionCase):
-    def setUp(self):
-        super().setUp()
-        self.product = self.env.ref("product.product_delivery_01")
-        self.partner = self.env.ref("base.res_partner_12")
-        self.partner2 = self.env.ref("base.res_partner_1")
-        self.date = fields.Date.to_date("1985-04-14")
-        self.journal_sale_std = self.env.ref(
-            "account_move_name_sequence.journal_sale_std_demo"
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        if not cls.env.company.chart_template_id:
+            # Load a CoA if there's none in current company
+            coa = cls.env.ref("l10n_generic_coa.configurable_chart_template", False)
+            if not coa:
+                # Load the first available CoA
+                coa = cls.env["account.chart.template"].search(
+                    [("visible", "=", True)], limit=1
+                )
+            coa.try_loading(company=cls.env.company, install_demo=False)
+        cls.product = cls.env.ref("product.product_delivery_01")
+        cls.partner = cls.env["res.partner"].create({"name": "Test partner"})
+        cls.partner2 = cls.env["res.partner"].create({"name": "Test partner2"})
+        cls.date = fields.Date.to_date("1985-04-14")
+        cls.journal_sale_std = cls.env["account.journal"].search(
+            [("company_id", "=", cls.env.company.id), ("type", "=", "sale")], limit=1
         )
-        self.journal_cash_std = self.env.ref(
-            "account_move_name_sequence.journal_cash_std_demo"
+        cls.journal_sale_std.sequence_id = cls.env.ref(
+            "account_move_name_sequence.seq_sale_std_demo"
+        )
+        cls.journal_cash_std = cls.env["account.journal"].search(
+            [("company_id", "=", cls.env.company.id), ("type", "=", "cash")], limit=1
+        )
+        cls.journal_cash_std.sequence_id = cls.env.ref(
+            "account_move_name_sequence.seq_cash_std_demo"
         )
 
     def _new_cr(self):

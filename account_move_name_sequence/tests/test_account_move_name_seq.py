@@ -16,19 +16,23 @@ from odoo.tests.common import Form, TransactionCase
 
 @tagged("post_install", "-at_install")
 class TestAccountMoveNameSequence(TransactionCase):
-    def setUp(self):
-        super().setUp()
-        self.company = self.env.ref("base.main_company")
-        self.partner = self.env.ref("base.res_partner_3")
-        self.misc_journal = self.env["account.journal"].create(
-            {
-                "name": "Test Journal Move name seq",
-                "code": "ADLM",
-                "type": "general",
-                "company_id": self.company.id,
-            }
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        if not cls.env.company.chart_template_id:
+            # Load a CoA if there's none in current company
+            coa = cls.env.ref("l10n_generic_coa.configurable_chart_template", False)
+            if not coa:
+                # Load the first available CoA
+                coa = cls.env["account.chart.template"].search(
+                    [("visible", "=", True)], limit=1
+                )
+            coa.try_loading(company=cls.env.company, install_demo=False)
+        cls.partner = cls.env["res.partner"].create({"name": "Test partner"})
+        cls.misc_journal = cls.env["account.journal"].search(
+            [("company_id", "=", cls.env.company.id), ("type", "=", "general")], limit=1
         )
-        self.sales_seq = self.env["ir.sequence"].create(
+        cls.sales_seq = cls.env["ir.sequence"].create(
             {
                 "name": "TB2C",
                 "implementation": "no_gap",
@@ -36,34 +40,24 @@ class TestAccountMoveNameSequence(TransactionCase):
                 "use_date_range": True,
                 "number_increment": 1,
                 "padding": 4,
-                "company_id": self.company.id,
+                "company_id": cls.env.company.id,
             }
         )
-        self.sales_journal = self.env["account.journal"].create(
-            {
-                "name": "TB2C",
-                "code": "TB2C",
-                "type": "sale",
-                "company_id": self.company.id,
-                "refund_sequence": True,
-                "sequence_id": self.sales_seq.id,
-            }
+        cls.sales_journal = cls.env["account.journal"].search(
+            [("company_id", "=", cls.env.company.id), ("type", "=", "sale")], limit=1
         )
-        self.purchase_journal = self.env["account.journal"].create(
-            {
-                "name": "Test Purchase Journal Move name seq",
-                "code": "ADLP",
-                "type": "purchase",
-                "company_id": self.company.id,
-                "refund_sequence": True,
-            }
+        cls.sales_journal.sequence_id = cls.sales_seq
+        cls.purchase_journal = cls.env["account.journal"].search(
+            [("company_id", "=", cls.env.company.id), ("type", "=", "purchase")],
+            limit=1,
         )
-        self.accounts = self.env["account.account"].search(
-            [("company_id", "=", self.company.id)], limit=2
+        cls.accounts = cls.env["account.account"].search(
+            [("company_id", "=", cls.env.company.id)], limit=2
         )
-        self.account1 = self.accounts[0]
-        self.account2 = self.accounts[1]
-        self.date = datetime.now()
+        cls.account1 = cls.accounts[0]
+        cls.account2 = cls.accounts[1]
+        cls.date = datetime.now()
+        cls.company = cls.env.company
 
     def test_seq_creation(self):
         self.assertTrue(self.misc_journal.sequence_id)
